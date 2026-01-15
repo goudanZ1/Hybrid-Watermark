@@ -5,11 +5,11 @@ import json
 import torch
 import os
 from statistics import mean, stdev
-from inverse_stable_diffusion import InversableStableDiffusionPipeline
+from stable_diffusion.inverse_stable_diffusion import InversableStableDiffusionPipeline
 from diffusers import DPMSolverMultistepScheduler
-from optim_utils import *
-from io_utils import *
-from image_utils import *
+from utils.optim_utils import *
+from utils.io_utils import *
+from utils.image_utils import *
 from pytorch_fid.fid_score import *
 from watermark import *
 

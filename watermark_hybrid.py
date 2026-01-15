@@ -3,7 +3,7 @@ import numpy as np
 from scipy.stats import norm, truncnorm
 from scipy.special import betainc
 from functools import reduce
-from rid_utils import *
+from utils.rid_utils import *
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from Crypto.Cipher import ChaCha20

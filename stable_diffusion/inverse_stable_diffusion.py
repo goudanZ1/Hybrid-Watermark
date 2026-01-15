@@ -2,7 +2,7 @@ from functools import partial
 from typing import Callable, List, Optional, Union, Tuple
 
 import torch
-from modified_stable_diffusion import ModifiedStableDiffusionPipeline
+from stable_diffusion.modified_stable_diffusion import ModifiedStableDiffusionPipeline
 
 
 

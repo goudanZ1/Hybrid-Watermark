@@ -3,11 +3,11 @@ import copy
 from tqdm import tqdm
 import torch
 from transformers import CLIPModel, CLIPProcessor
-from inverse_stable_diffusion import InversableStableDiffusionPipeline
+from stable_diffusion.inverse_stable_diffusion import InversableStableDiffusionPipeline
 from diffusers import DPMSolverMultistepScheduler, DDIMScheduler
-from optim_utils import *
-from io_utils import *
-from image_utils import *
+from utils.optim_utils import *
+from utils.io_utils import *
+from utils.image_utils import *
 from watermark_hybrid import *
 
 
