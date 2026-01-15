@@ -60,18 +60,19 @@ def latents_to_imgs(pipe, latents):
 
 
 # for one prompt to multiple images
-def measure_similarity(images, prompt, model, clip_preprocess, tokenizer, device):
+def measure_similarity(images, prompt, model, processor, device):
     with torch.no_grad():
-        img_batch = [clip_preprocess(i).unsqueeze(0) for i in images]
-        img_batch = torch.concatenate(img_batch).to(device)
-        image_features = model.encode_image(img_batch)
+        image_inputs = processor(images=images, return_tensors="pt")
+        image_inputs = {k: v.to(device) for k, v in image_inputs.items()}
+        image_features = model.get_image_features(**image_inputs)
 
-        text = tokenizer([prompt]).to(device)
-        text_features = model.encode_text(text)
-        
-        image_features /= image_features.norm(dim=-1, keepdim=True)
-        text_features /= text_features.norm(dim=-1, keepdim=True)
-        
+        text_inputs = processor(text=[prompt], return_tensors="pt", padding=True)
+        text_inputs = {k: v.to(device) for k, v in text_inputs.items()}
+        text_features = model.get_text_features(**text_inputs)
+
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
         return (image_features @ text_features.T).mean(-1)
 
 
