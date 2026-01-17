@@ -56,7 +56,8 @@ def main(args):
         fpr_target=args.fpr,
         user_number=args.user_number,
         debug=True,
-        use_chacha=args.chacha
+        use_chacha=args.chacha,
+        chacha_seed=args.gen_seed
     )
     os.makedirs(args.output_path, exist_ok=True)
 
@@ -65,7 +66,8 @@ def main(args):
     text_embeddings = pipe.get_text_embedding(tester_prompt)
 
     #acc
-    acc = []
+    gs_accs = []
+    ring_id_accs = []
     #CLIP Scores
     clip_scores = []
 
@@ -133,9 +135,10 @@ def main(args):
         )
 
         #acc metric
-        acc_metric = watermark.eval_watermark(reversed_latents_w)
-        print(acc_metric)
-        acc.append(acc_metric)
+        gs_acc, ring_id_acc = watermark.eval_watermark(reversed_latents_w)
+        print(gs_acc, ring_id_acc)
+        gs_accs.append(gs_acc)
+        ring_id_accs.append(ring_id_acc)
 
         #CLIP Score
         if args.reference_model is not None:
@@ -151,7 +154,7 @@ def main(args):
     print(watermark.get_tpr())
     
     #save metrics
-    save_metrics(args, tpr_detection, tpr_traceability, acc, clip_scores)
+    save_metrics(args, tpr_detection, tpr_traceability, gs_accs, ring_id_accs, clip_scores)
 
 
 if __name__ == '__main__':
@@ -171,7 +174,7 @@ if __name__ == '__main__':
     parser.add_argument('--reference_model', default=None)
     parser.add_argument('--reference_model_pretrain', default=None)
     parser.add_argument('--dataset_path', default='Gustavosta/Stable-Diffusion-Prompts')
-    parser.add_argument('--model_path', default='manojb/stable-diffusion-2-1-base')
+    parser.add_argument('--model_path', default='/home/jiazhao/Hybrid-Watermark/modelscope/AI-ModelScope/stable-diffusion-2-1-base')
 
     # for image distortion
     parser.add_argument('--jpeg_ratio', default=None, type=int)
