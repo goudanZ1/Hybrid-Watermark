@@ -1,13 +1,25 @@
+import os
 import torch
 import numpy as np
 from scipy.stats import norm, truncnorm
 from scipy.special import betainc
 from functools import reduce
 from utils.rid_utils import *
+import matplotlib
+if os.environ.get("DISPLAY", "") == "":
+    matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from Crypto.Cipher import ChaCha20
 from Crypto.Random import get_random_bytes
+
+
+def _safe_subplots(*args, **kwargs):
+    try:
+        return plt.subplots(*args, **kwargs)
+    except Exception:
+        plt.switch_backend("Agg")
+        return plt.subplots(*args, **kwargs)
 
 # 假设 util.py 中的 fft, ifft, ring_mask, make_Fourier_ringid_pattern 已在全局作用域可用
 # 或者你可以通过 import 引入
@@ -25,11 +37,16 @@ class HybridWatermarker:
                  user_id=0,
                  # 设为 True 以打印acc/distance、可视化水印情况
                  debug: bool = False,
-                 use_chacha: bool = False):
+                 use_chacha: bool = False,
+                 chacha_seed=None):
         
         self.device = device
         self.debug = debug
         self.use_chacha = use_chacha
+        self.chacha_seed = chacha_seed
+        self._gs_key_rng = None
+        if self.use_chacha and self.chacha_seed is not None:
+            self._gs_key_rng = torch.Generator(device="cpu").manual_seed(int(self.chacha_seed))
         
         # --- 1. Gaussian Shading 配置 (针对 HETER_WATERMARK_CHANNEL) ---
         self.gs_ch = gs_ch_factor
@@ -86,8 +103,14 @@ class HybridWatermarker:
     def _stream_key_encrypt(self, bits: np.ndarray):
         if not self.use_chacha:
             return bits
-        self.gs_key = get_random_bytes(32)
-        self.gs_nonce = get_random_bytes(12)
+        if self._gs_key_rng is None:
+            self.gs_key = get_random_bytes(32)
+            self.gs_nonce = get_random_bytes(12)
+        else:
+            key = torch.randint(0, 256, (32,), generator=self._gs_key_rng, dtype=torch.uint8).numpy().tobytes()
+            nonce = torch.randint(0, 256, (12,), generator=self._gs_key_rng, dtype=torch.uint8).numpy().tobytes()
+            self.gs_key = key
+            self.gs_nonce = nonce
         cipher = ChaCha20.new(key=self.gs_key, nonce=self.gs_nonce)
         m_byte = cipher.encrypt(np.packbits(bits).tobytes())
         m_bit = np.unpackbits(np.frombuffer(m_byte, dtype=np.uint8))[: bits.size]
@@ -143,7 +166,7 @@ class HybridWatermarker:
         # 转换到 CPU
         latents = output_latents[0].detach().cpu()
         
-        fig, axes = plt.subplots(1, 4, figsize=(24, 5))
+        fig, axes = _safe_subplots(1, 4, figsize=(24, 5))
         
         # --- 1. 可视化通道 0, 3 (频域 FFT) ---
         for i, ch in enumerate(self.ring_channels):
@@ -279,7 +302,7 @@ class HybridWatermarker:
         fft_log = np.log1p(np.abs(fft_viz))
 
         # 3. 开始绘图
-        fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+        fig, axes = _safe_subplots(1, 4, figsize=(20, 5))
         
         # A. 预设的 Pattern (应该是清晰的 $\pm 32$ 构成的圆环)
         im0 = axes[0].imshow(pattern_viz, cmap='RdBu_r')
@@ -352,7 +375,7 @@ class HybridWatermarker:
         avg_acc = np.mean(channel_accs)
         is_detected = avg_acc >= self.tau_gs
         is_traceable = avg_acc >= self.tau_gs_traceable
-        return is_detected, is_traceable, acc
+        return is_detected, is_traceable, avg_acc
 
     def _eval_ring(self, latents):
         """评估 RingID 通道"""
@@ -372,12 +395,13 @@ class HybridWatermarker:
         
         best_match_idx = np.argmin(distances)
         min_dist = distances[best_match_idx]
+        is_match = best_match_idx == self.ring_current_user_id
         if self.debug:
             print(self.ring_current_user_id, best_match_idx, min_dist, min(distances))
         is_detected = min_dist < self.ring_threshold_dist
-        is_traceable = is_detected and (best_match_idx == self.ring_current_user_id)
+        is_traceable = is_detected and is_match
         
-        return is_detected, is_traceable, -min_dist
+        return is_detected, is_traceable, min_dist, is_match
     
     @torch.no_grad()
     def eval_watermark(self, reversed_latents):
@@ -387,13 +411,14 @@ class HybridWatermarker:
         3. 只要有一个达到 tau / threshold，detection 成功
         4. traceability 逻辑根据具体业务定义（此处采用混合检出即追溯）
         """
-        is_gs_detected, is_gs_traceable, gs_score = self._eval_gs(reversed_latents)
-        is_ring_detected, is_ring_traceable, ring_score = self._eval_ring(reversed_latents)
+        is_gs_detected, is_gs_traceable, gs_acc = self._eval_gs(reversed_latents)
+        is_ring_detected, is_ring_traceable, ring_dist, is_ring_match = self._eval_ring(reversed_latents)
         
         if self.debug:
             self.visualize_watermark_debug(reversed_latents, "debug_ch1.png")
-            print("Gaussian Shading Acc: ", gs_score)
-            print("RingID L1 Distance: ", ring_score)
+            print("Gaussian Shading Acc: ", gs_acc)
+            print("RingID L1 Distance: ", ring_dist)
+            print("RingID Match: ", is_ring_match)
             print("GS & RID Detected:", is_gs_detected, is_ring_detected)
             print("GS & RID Traceable:", is_gs_traceable, is_ring_traceable)
         
@@ -404,7 +429,7 @@ class HybridWatermarker:
             self.tp_traceability_count += 1 
 
         # （供 save_metrics 使用）
-        return np.mean([gs_score, ring_score])
+        return gs_acc, float(is_ring_match)
 
     def get_tpr(self):
         # 返回 detection 和 traceability 的累计计数

@@ -28,7 +28,7 @@ def get_dataset(args):
     return dataset, prompt_key
 
 
-def save_metrics(args, tpr_detection, tpr_traceability, acc, clip_scores):
+def save_metrics(args, tpr_detection, tpr_traceability, gs_accs, ring_id_accs, clip_scores):
     names = {
         'jpeg_ratio': "Jpeg.txt",
         'random_crop_ratio': "RandomCrop.txt",
@@ -50,7 +50,8 @@ def save_metrics(args, tpr_detection, tpr_traceability, acc, clip_scores):
         with open(args.output_path + filename, "a") as file:
             file.write('tpr_detection:' + str(tpr_detection / args.num) + '      ' +
                        'tpr_traceability:' + str(tpr_traceability / args.num) + '      ' +
-                       'mean_acc:' + str(mean(acc)) + '      ' + 'std_acc:' + str(stdev(acc)) + '      ' +
+                       'mean_gs_acc:' + str(mean(gs_accs)) + '      ' + 'std_gs_acc:' + str(stdev(gs_accs)) + '      ' +
+                       'mean_ring_id_acc:' + str(mean(ring_id_accs)) + '      ' + 'std_ring_id_acc:' + str(stdev(ring_id_accs)) + '      ' +
                        'mean_clip_score:' + str(mean(clip_scores)) + '      ' + 'std_clip_score:' + str(stdev(clip_scores)) + '      ' +
                        '\n')
 
@@ -58,11 +59,11 @@ def save_metrics(args, tpr_detection, tpr_traceability, acc, clip_scores):
         with open(args.output_path + filename, "a") as file:
             file.write('tpr_detection:' + str(tpr_detection / args.num) + '      ' +
                        'tpr_traceability:' + str(tpr_traceability / args.num) + '      ' +
-                       'mean_acc:' + str(mean(acc)) + '      ' + 'std_acc:' + str(stdev(acc)) + '      ' +
+                       'mean_gs_acc:' + str(mean(gs_accs)) + '      ' + 'std_gs_acc:' + str(stdev(gs_accs)) + '      ' +
+                       'mean_ring_id_acc:' + str(mean(ring_id_accs)) + '      ' + 'std_ring_id_acc:' + str(stdev(ring_id_accs)) + '      ' +
                        '\n')
 
     return
-
 
 
 

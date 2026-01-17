@@ -41,6 +41,16 @@ Refer to `scripts/run.sh`.
 
 Refer to the main program `run_gaussian_shading.py` for hyperparameters.
 
+If you need configurable channels (GS/RingID) and auto-scaled RingID threshold, use `run_gaussian_shading_configurable.py`:
+
+```
+python run_gaussian_shading_configurable.py \
+      --gs_channels 0,2,3 \
+      --ring_channels 1 \
+      --num 100 \
+      --brightness_factor 6
+```
+
 ---
 
 ## Gaussian Shading: Provable Performance-Lossless Image Watermarking for Diffusion Models
