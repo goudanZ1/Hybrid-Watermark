@@ -4,7 +4,9 @@ Tree-Ring/RingID excel at robustness to geometric transforms, while Gaussian Sha
 
 ## Method
 
-![method](assets/hybrid-framework.png)
+![method](assets/framework-1.png)
+
+![method](assets/framework-2.png)
 
 
 ### Improvements compared with Gaussian Shading
